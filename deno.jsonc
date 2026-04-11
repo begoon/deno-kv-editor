@@ -1,0 +1,14 @@
+{
+  "unstable": [
+    "kv"
+  ],
+  "lint": {
+    "rules": {
+      "exclude": ["no-sloppy-imports"]
+    }
+  },
+  "deploy": {
+    "org": "ea",
+    "app": "deno-kv-editor"
+  }
+}

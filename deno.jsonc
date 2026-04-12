@@ -4,7 +4,9 @@
   ],
   "lint": {
     "rules": {
-      "exclude": ["no-sloppy-imports"]
+      "exclude": [
+        "no-sloppy-imports"
+      ]
     }
   },
   "deploy": {
@@ -12,6 +14,3 @@
     "app": "deno-kv-editor"
   }
 }
-
-
-

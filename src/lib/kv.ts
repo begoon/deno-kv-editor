@@ -2,8 +2,13 @@ let kv: Deno.Kv | null = null;
 
 export async function getKv(): Promise<Deno.Kv> {
     if (!kv) {
-        kv = await Deno.openKv();
-        console.log("Opened Deno.Kv instance", kv);
+        const uuid = Deno.env.get("DENO_KV_UUID");
+        if (uuid) {
+            const url = `https://api.deno.com/databases/${uuid}/connect`;
+            kv = await Deno.openKv(url);
+        } else {
+            kv = await Deno.openKv();
+        }
     }
     return kv;
 }

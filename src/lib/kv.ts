@@ -1,18 +1,3 @@
-let kv: Deno.Kv | null = null;
-
-export async function getKv(): Promise<Deno.Kv> {
-    if (!kv) {
-        const uuid = Deno.env.get("DENO_KV_UUID");
-        if (uuid) {
-            const url = `https://api.deno.com/databases/${uuid}/connect`;
-            kv = await Deno.openKv(url);
-        } else {
-            kv = await Deno.openKv();
-        }
-    }
-    return kv;
-}
-
 export type KvKeyPart = string | number | boolean | bigint;
 
 export type EntryType = "string" | "number" | "object" | "array";

@@ -1,8 +1,7 @@
 <script lang="ts">
-    import { invalidateAll } from "$app/navigation";
     import { type EntryType, type KvEntry, type KvKeyPart, displayKey, parseKeyInput } from "$lib/kv";
 
-    let { entries }: { entries: KvEntry[] } = $props();
+    let { entries, onChange }: { entries: KvEntry[]; onChange: () => Promise<void> } = $props();
 
     let editingKey = $state<KvKeyPart[] | null>(null);
     let editValue = $state("");
@@ -85,7 +84,7 @@
             body: JSON.stringify({ key: editingKey, value }),
         });
         editingKey = null;
-        await invalidateAll();
+        await onChange();
     }
 
     function cancelEdit() {
@@ -99,7 +98,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ key }),
         });
-        await invalidateAll();
+        await onChange();
     }
 
     function onNewKeyInput(raw: string) {
@@ -135,7 +134,7 @@
         newValue = "";
         newKeyValid = true;
         creating = false;
-        await invalidateAll();
+        await onChange();
     }
 
     function cancelCreate() {

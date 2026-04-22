@@ -1,0 +1,40 @@
+<div id="create" class="mb-4 rounded border border-blue-300 bg-blue-50 p-4">
+    {{errorLine}}
+    <form hx-post="/new" hx-target="#create" hx-swap="outerHTML">
+        <div class="mb-3 flex gap-3">
+            <input
+                type="text"
+                name="key"
+                required
+                value="{{keyVal}}"
+                placeholder='Key (e.g. mykey or ["users", 42])'
+                class="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
+            />
+            <input
+                type="text"
+                name="value"
+                required
+                value="{{valueVal}}"
+                placeholder="Value (string, number, or JSON)"
+                class="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
+            />
+        </div>
+        <div class="flex items-center gap-2">
+            <button
+                type="submit"
+                class="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+                Save
+            </button>
+            <button
+                type="button"
+                hx-get="/create/cancel"
+                hx-target="#create"
+                hx-swap="outerHTML"
+                class="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            >
+                Cancel
+            </button>
+        </div>
+    </form>
+</div>

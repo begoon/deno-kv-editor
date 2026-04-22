@@ -1,0 +1,26 @@
+<tr class="border-b border-gray-100">
+    <td class="w-1/3 py-2 pr-4 align-top font-mono text-sm text-red-700">{{keyText}}</td>
+    <td class="py-2 align-top">
+        <form hx-post="/entry" hx-target="closest tr" hx-swap="outerHTML">
+            <input type="hidden" name="key" value="{{keyJson}}" />
+            {{input}}
+            <div class="mt-1.5 flex gap-2">
+                <button
+                    type="submit"
+                    class="rounded bg-blue-600 px-3 py-1 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                    Save
+                </button>
+                <button
+                    type="button"
+                    hx-get="/row?k={{keyToken}}"
+                    hx-target="closest tr"
+                    hx-swap="outerHTML"
+                    class="rounded border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </td>
+</tr>

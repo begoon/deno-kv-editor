@@ -130,137 +130,83 @@ function filterEntries(entries: KvEntry[], query: string): KvEntry[] {
 
 // --- HTML rendering ------------------------------------------------------
 
+function loadTmpl(name: string): string {
+    return Deno.readTextFileSync(
+        new URL(`./templates/${name}.html`, import.meta.url),
+    );
+}
+
+const TMPL = {
+    page: loadTmpl("page"),
+    row: loadTmpl("row"),
+    editRow: loadTmpl("edit-row"),
+    editInput: loadTmpl("edit-input"),
+    editTextarea: loadTmpl("edit-textarea"),
+    tbody: loadTmpl("tbody"),
+    tbodyEmpty: loadTmpl("tbody-empty"),
+    createForm: loadTmpl("create-form"),
+    createButton: loadTmpl("create-button"),
+};
+
+// {{name}} substitution. Values are NOT escaped by render — callers must
+// pre-escape any untrusted strings with esc() before passing them in.
+function render(tmpl: string, vars: Record<string, string> = {}): string {
+    return tmpl.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? "");
+}
+
 function renderRow(entry: KvEntry): string {
-    const k = encodeKey(entry.key);
-    const keyText = esc(displayKey(entry.key));
-    const valText = esc(displayValue(entry.value, entry.type));
-    return `<tr class="border-b border-gray-100">
-  <td class="w-1/3 py-2 pr-4 align-top">
-    <button
-      hx-delete="/entry?k=${k}"
-      hx-target="closest tr"
-      hx-swap="outerHTML"
-      hx-confirm="Delete &quot;${keyText}&quot;?"
-      class="w-full cursor-pointer text-left font-mono text-sm text-red-700 hover:text-red-900 hover:underline"
-      title="Click to delete"
-    >${keyText}</button>
-  </td>
-  <td class="py-2 align-top">
-    <button
-      hx-get="/edit?k=${k}"
-      hx-target="closest tr"
-      hx-swap="outerHTML"
-      class="w-full cursor-pointer text-left font-mono text-sm whitespace-pre-wrap hover:bg-gray-50"
-      title="Click to edit"
-    >${valText}</button>
-  </td>
-</tr>`;
+    return render(TMPL.row, {
+        keyToken: encodeKey(entry.key),
+        keyText: esc(displayKey(entry.key)),
+        valText: esc(displayValue(entry.value, entry.type)),
+    });
 }
 
 function renderEditRow(entry: KvEntry): string {
-    const k = encodeKey(entry.key);
-    const keyText = esc(displayKey(entry.key));
     const raw = editValue(entry.value, entry.type);
     const isMultiline = entry.type === "object" || entry.type === "array";
-    const input = isMultiline
-        ? `<textarea name="value" rows="6" class="w-full rounded border border-gray-300 px-2 py-1 font-mono text-sm">${esc(raw)}</textarea>`
-        : `<input type="text" name="value" value="${esc(raw)}" class="w-full rounded border border-gray-300 px-2 py-1 font-mono text-sm"/>`;
-    return `<tr class="border-b border-gray-100">
-  <td class="w-1/3 py-2 pr-4 align-top font-mono text-sm text-red-700">${keyText}</td>
-  <td class="py-2 align-top">
-    <form hx-post="/entry" hx-target="closest tr" hx-swap="outerHTML">
-      <input type="hidden" name="key" value="${esc(JSON.stringify(entry.key))}"/>
-      ${input}
-      <div class="mt-1.5 flex gap-2">
-        <button type="submit" class="rounded bg-blue-600 px-3 py-1 text-sm font-medium text-white hover:bg-blue-700">Save</button>
-        <button type="button"
-          hx-get="/row?k=${k}"
-          hx-target="closest tr"
-          hx-swap="outerHTML"
-          class="rounded border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-      </div>
-    </form>
-  </td>
-</tr>`;
+    const input = render(
+        isMultiline ? TMPL.editTextarea : TMPL.editInput,
+        { value: esc(raw) },
+    );
+    return render(TMPL.editRow, {
+        keyToken: encodeKey(entry.key),
+        keyText: esc(displayKey(entry.key)),
+        keyJson: esc(JSON.stringify(entry.key)),
+        input,
+    });
 }
 
-function renderTbody(entries: KvEntry[]): string {
-    if (entries.length === 0) {
-        return `<tbody id="rows"><tr><td colspan="2" class="py-8 text-center text-sm text-gray-400">No entries. Use "Create…" to add one.</td></tr></tbody>`;
-    }
-    return `<tbody id="rows">${entries.map(renderRow).join("")}</tbody>`;
+function renderTbody(entries: KvEntry[], oob = false): string {
+    const oobAttr = oob ? ' hx-swap-oob="outerHTML"' : "";
+    const body = entries.length === 0
+        ? render(TMPL.tbodyEmpty, { oobAttr })
+        : render(TMPL.tbody, { oobAttr, rows: entries.map(renderRow).join("") });
+    // `<tbody>` is stripped by the HTML parser when it appears at the root of
+    // an OOB response fragment, so wrap it in <template> to keep it intact.
+    return oob ? `<template>${body}</template>` : body;
 }
 
 function renderCreateForm(error?: string, keyVal = "", valueVal = ""): string {
-    const errLine = error
+    const errorLine = error
         ? `<p class="mb-2 text-sm text-red-700">${esc(error)}</p>`
         : "";
-    return `<div id="create" class="mb-4 rounded border border-blue-300 bg-blue-50 p-4">
-  ${errLine}
-  <form hx-post="/new" hx-target="#create" hx-swap="outerHTML">
-    <div class="mb-3 flex gap-3">
-      <input type="text" name="key" required value="${esc(keyVal)}"
-        placeholder='Key (e.g. mykey or [&quot;users&quot;, 42])'
-        class="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"/>
-      <input type="text" name="value" required value="${esc(valueVal)}"
-        placeholder="Value (string, number, or JSON)"
-        class="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"/>
-    </div>
-    <div class="flex items-center gap-2">
-      <button type="submit" class="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700">Save</button>
-      <button type="button"
-        hx-get="/create/cancel" hx-target="#create" hx-swap="outerHTML"
-        class="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-    </div>
-  </form>
-</div>`;
+    return render(TMPL.createForm, {
+        errorLine,
+        keyVal: esc(keyVal),
+        valueVal: esc(valueVal),
+    });
 }
 
 function renderCreateSlot(open: boolean): string {
-    if (open) return renderCreateForm();
-    return `<div id="create" class="mb-4">
-  <button
-    hx-get="/create"
-    hx-target="#create"
-    hx-swap="outerHTML"
-    class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-  >Create…</button>
-</div>`;
+    return open ? renderCreateForm() : TMPL.createButton;
 }
 
 function renderPage(entries: KvEntry[]): string {
-    return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <title>KV Editor (htmx)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <script src="https://unpkg.com/htmx.org@2.0.3"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-white text-gray-900">
-  <div class="mx-auto max-w-4xl p-6">
-    <div class="mb-4 flex items-center justify-between gap-3">
-      <h1 class="text-2xl font-bold">KV Editor <span class="text-sm font-normal text-gray-400">htmx</span></h1>
-      <a href="/svelte" class="text-sm text-blue-600 hover:underline">Svelte version →</a>
-      <input type="text" name="q" placeholder="Filter..."
-        hx-get="/rows" hx-target="#rows" hx-swap="outerHTML"
-        hx-trigger="input changed delay:200ms, search"
-        class="rounded border border-gray-300 px-3 py-2 text-sm"/>
-    </div>
-    ${renderCreateSlot(false)}
-    <table class="w-full border-collapse">
-      <thead>
-        <tr class="border-b border-gray-300 text-left text-sm text-gray-500">
-          <th class="w-1/3 py-2 pr-4 font-medium">Key</th>
-          <th class="py-2 font-medium">Value</th>
-        </tr>
-      </thead>
-      ${renderTbody(entries)}
-    </table>
-  </div>
-</body>
-</html>`;
+    return render(TMPL.page, {
+        createSlot: renderCreateSlot(false),
+        tbody: renderTbody(entries),
+    });
 }
 
 // --- HTTP ---------------------------------------------------------------
@@ -294,23 +240,28 @@ function validKeyArray(k: unknown): KvKeyPart[] | null {
     return ok ? (k as KvKeyPart[]) : null;
 }
 
-// The Svelte single-file bundle — loaded lazily on first /svelte request.
-let _svelteHtml: string | null = null;
-async function loadSvelteHtml(): Promise<string> {
-    if (_svelteHtml) return _svelteHtml;
+// Built Svelte single-file pages — loaded lazily and cached per page name.
+const _svelteCache = new Map<string, string>();
+async function loadSveltePage(name: string): Promise<string | null> {
+    if (_svelteCache.has(name)) return _svelteCache.get(name)!;
+    // Guard against path traversal — only word chars allowed.
+    if (!/^[a-zA-Z0-9_-]+$/.test(name)) return null;
     try {
-        _svelteHtml = await Deno.readTextFile(
-            new URL("./dist/index.html", import.meta.url),
+        const body = await Deno.readTextFile(
+            new URL(`./templates/svelte/${name}.html`, import.meta.url),
         );
+        _svelteCache.set(name, body);
+        return body;
     } catch {
-        _svelteHtml =
-            `<!doctype html><meta charset="utf-8"><title>Not built</title>
+        return null;
+    }
+}
+
+const NOT_BUILT_HTML =
+    `<!doctype html><meta charset="utf-8"><title>Not built</title>
 <p style="font-family:sans-serif;padding:2rem">
 The Svelte bundle has not been built yet. Run <code>npm install &amp;&amp; npm run build</code>
 and then reload this page.</p>`;
-    }
-    return _svelteHtml;
-}
 
 async function findEntry(key: KvKeyPart[]): Promise<KvEntry | null> {
     const kv = await getKv();
@@ -396,11 +347,7 @@ async function handle(req: Request): Promise<Response> {
         // Replace the create form (target=#create) with a closed slot, and
         // use an OOB swap to refresh the rows tbody.
         const entries = await listEntries();
-        const tbody = renderTbody(entries).replace(
-            '<tbody id="rows">',
-            '<tbody id="rows" hx-swap-oob="outerHTML">',
-        );
-        return html(renderCreateSlot(false) + tbody);
+        return html(renderCreateSlot(false) + renderTbody(entries, true));
     }
 
     if (method === "DELETE" && pathname === "/entry") {
@@ -413,8 +360,15 @@ async function handle(req: Request): Promise<Response> {
 
     // --- Svelte editor + JSON API ---------------------------------------
 
-    if (method === "GET" && (pathname === "/svelte" || pathname === "/svelte/")) {
-        return html(await loadSvelteHtml());
+    if (method === "GET" && pathname.startsWith("/svelte")) {
+        // /svelte, /svelte/ → index ; /svelte/about → about
+        const rest = pathname.slice("/svelte".length).replace(/^\//, "");
+        const name = rest === "" ? "index" : rest;
+        const body = await loadSveltePage(name);
+        if (body === null) {
+            return name === "index" ? html(NOT_BUILT_HTML) : html("not found", 404);
+        }
+        return html(body);
     }
 
     if (method === "GET" && pathname === "/api/entries") {

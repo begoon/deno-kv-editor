@@ -16,6 +16,9 @@
 </script>
 
 <div class="mx-auto max-w-4xl p-6">
+    <div class="mb-2 text-right">
+        <a href="/svelte/about" class="text-sm text-blue-600 hover:underline">About →</a>
+    </div>
     {#if loaded}
         <KvEditor {entries} onChange={loadEntries} />
     {:else}

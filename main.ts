@@ -111,7 +111,7 @@ function esc(s: string): string {
 async function listEntries(): Promise<KvEntry[]> {
     const kv = await getKv();
     const entries: KvEntry[] = [];
-    for await (const entry of kv.list({ prefix: [] })) {
+    for await (const entry of kv.list({ prefix: [] }, { consistency: "eventual" })) {
         const key = entry.key as KvKeyPart[];
         entries.push({ key, value: entry.value, type: detectType(entry.value) });
     }
@@ -265,7 +265,7 @@ and then reload this page.</p>`;
 
 async function findEntry(key: KvKeyPart[]): Promise<KvEntry | null> {
     const kv = await getKv();
-    const res = await kv.get(key);
+    const res = await kv.get(key, { consistency: "eventual" });
     if (res.value === null) return null;
     return { key, value: res.value, type: detectType(res.value) };
 }

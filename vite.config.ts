@@ -7,32 +7,34 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 
-export default defineConfig({
-    plugins: [
-        tailwindcss(),
-        svelte(),
-        // MPA: disable the plugin's recommended (single-input-only) config
-        // and apply inlining settings manually in build below.
-        viteSingleFile({ useRecommendedBuildConfig: false, removeViteModuleLoader: true }),
-    ],
-    build: {
-        outDir: "templates/svelte",
-        assetsInlineLimit: 100_000_000,
-        chunkSizeWarningLimit: 100_000_000,
-        cssCodeSplit: false,
-        rollupOptions: {
-            input: {
-                main: resolve(root, "index.html"),
-                about: resolve(root, "about.html"),
-            },
-            output: {
-                inlineDynamicImports: false,
+// Each --mode selects a single entry. Running multiple entries in one build
+// would create a shared chunk that vite-plugin-singlefile can't inline,
+// leaving an external <script src> that nothing serves.
+const entries: Record<string, string> = {
+    main: "index.html",
+    about: "about.html",
+};
+
+export default defineConfig(({ mode }) => {
+    const entry = entries[mode];
+    if (!entry) {
+        throw new Error(
+            `vite build needs --mode <${Object.keys(entries).join("|")}>`,
+        );
+    }
+    return {
+        plugins: [tailwindcss(), svelte(), viteSingleFile()],
+        build: {
+            outDir: "templates/svelte",
+            emptyOutDir: false,
+            rollupOptions: {
+                input: resolve(root, entry),
             },
         },
-    },
-    resolve: {
-        alias: {
-            $lib: resolve(root, "src/lib"),
+        resolve: {
+            alias: {
+                $lib: resolve(root, "src/lib"),
+            },
         },
-    },
+    };
 });

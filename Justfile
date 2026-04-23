@@ -5,4 +5,6 @@ run:
     deno run -A main.ts
 
 build:
-    npm run build
+    rm -rf templates/svelte
+    npx vite build --mode main
+    npx vite build --mode about

@@ -1,7 +1,15 @@
 <script lang="ts">
     import { type EntryType, type KvEntry, type KvKeyPart, displayKey, parseKeyInput } from "$lib/kv";
 
-    let { entries, onChange }: { entries: KvEntry[]; onChange: () => Promise<void> } = $props();
+    let {
+        entries,
+        onChange,
+        fetcher = fetch,
+    }: {
+        entries: KvEntry[];
+        onChange: () => Promise<void>;
+        fetcher?: (input: string, init?: RequestInit) => Promise<Response>;
+    } = $props();
 
     let editingKey = $state<KvKeyPart[] | null>(null);
     let editValue = $state("");
@@ -78,7 +86,7 @@
     async function handleSave() {
         if (!editingKey || !editValid) return;
         const value = parseValue(editValue, editType);
-        await fetch("/api/kv", {
+        await fetcher("/api/kv", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ key: editingKey, value }),
@@ -93,7 +101,7 @@
 
     async function handleDelete(key: KvKeyPart[]) {
         if (!confirm(`Delete "${displayKey(key)}"?`)) return;
-        await fetch("/api/kv", {
+        await fetcher("/api/kv", {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ key }),
@@ -125,7 +133,7 @@
         const parsedKey = parseKeyInput(newKey);
         if (!parsedKey || !newValue.trim()) return;
         const { value } = detectNewType(newValue);
-        await fetch("/api/kv", {
+        await fetcher("/api/kv", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ key: parsedKey, value }),
